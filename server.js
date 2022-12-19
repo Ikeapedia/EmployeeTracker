@@ -1,5 +1,6 @@
 const { prompt } = require('inquirer');
 const mysql = require("mysql2");
+const table = require("console.table");
 require('console.table');
 require('dotenv').config();
 
@@ -10,11 +11,12 @@ const connection = mysql.createConnection({
   database: "employees_db"
 });
 
-connection.connect(function (err) {
-  if (err) throw err;
+connection.connect(error => {
+  if (error) throw error;
+  postConnection();
 });
 
-postConnection();
+
 
 function postConnection() {
     console.log("***********************************")
@@ -42,37 +44,37 @@ function initialPrompt() {
         ]
     })
         .then(answer => {
-            const { choices } = answer;
+            const { choice } = answer;
 
-            if (choices === "View all departments") {
+            if (choice === "View all departments") {
                 allDepartments();
             }
 
-            if (choices === "View all roles") {
+            if (choice === "View all roles") {
                 allRoles();
             }
 
-            if (choices === "View all employees") {
+            if (choice === "View all employees") {
                 allEmployees();
             }
 
-            if (choices === "Add a department") {
+            if (choice === "Add a department") {
                 addDepartment();
             }
 
-            if (choices === "Add a role") {
+            if (choice === "Add a role") {
                 addRole();
             }
 
-            if (choices === "Add an employee") {
+            if (choice === "Add an employee") {
                 addEmployee();
             }
 
-            if (choices === "Update an employee role") {
+            if (choice === "Update an employee role") {
                 updateRole();
             }
 
-            if (choices === "Quit") {
+            if (choice === "Quit") {
                 connection.end();
             };
         });
@@ -82,7 +84,7 @@ allDepartments = () => {
     console.log('All departments \n');
     const sql = `SELECT department.id AS id, department.name AS department FROM department`;
 
-    connection.promise().query(sql, (error, rows) => {
+    connection.query(sql, (error, rows) => {
         if (error) throw error;
         console.table(rows);
         initialPrompt();
@@ -91,10 +93,10 @@ allDepartments = () => {
 
 allRoles = () => {
     console.log('All roles \n');
-    const sql = `SELECT role.id, role.title, department.department_name AD department
+    const sql = `SELECT role.id, role.name, department.name AS department
                     FROM role
                     INNER JOIN department ON role.department_id = department.id`;
-    connection.promise().query(sql, (error, rows) => {
+    connection.query(sql, (error, rows) => {
         if (error) throw error;
         console.table(rows);
         initialPrompt();
@@ -102,14 +104,14 @@ allRoles = () => {
 };
 
 allEmployees = () => {
-    const sql = `SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name AD department, role.salary, CONCAT(manager.first_name, ' ', manager.last_name) AS manager 
+    const sql = `SELECT employee.id, employee.first_name, employee.last_name, role.name, department.name AS department, role.salary, CONCAT(manager.first_name, ' ', manager.last_name) AS manager 
     FROM employee
     LEFT JOIN employee manager on manager.id = employee.manager_id
     INNER JOIN role ON (role.id = employee.role_id)
     INNER JOIN department ON (department.id = role.department_id)
     ORDER BY employee.id`;
 
-    connection.promoise().query(sql, (error, rows) => {
+    connection.query(sql, (error, rows) => {
         if (error) throw error;
         console.table(rows);
         initialPrompt();
@@ -133,7 +135,7 @@ addDepartment = () => {
 
             connection.query(sql, answer.addDept, (error, result) => {
                 if (error) throw error;
-                console.log('Added ' + answer.addDept + 'to departments.');
+                console.log('Added ' + answer.addDept + ' to departments.');
 
                 allDepartments();
             });
@@ -156,7 +158,7 @@ addRole = () => {
             name: 'salary',
             message: 'Enter the salary for the role.',
             validate: addSalary => {
-                return (isNaN(addSalary) ? true : console.log('Please enter a salary'));
+                return ((addSalary) ? true : console.log(' Please enter a salary'));
             }
         }
     ])
@@ -165,7 +167,7 @@ addRole = () => {
 
             const sqlRole = `SELECT name, id FROM department`;
 
-            connection.promise().query(sqlRole, (error, data) => {
+            connection.query(sqlRole, (error, data) => {
                 if (error) throw error;
 
                 const dept = data.map(({ name, id }) => ({ name: name, value: id }));
@@ -182,7 +184,7 @@ addRole = () => {
                         const dept = deptChoices.dept;
                         params.push(dept);
 
-                        const sql = `INSERT INTO role (title, salary, department_id)
+                        const sql = `INSERT INTO role (name, salary, department_id)
                             VALUES (?, ?, ?)`;
 
                         connection.query(sql, params, (error, results) => {
@@ -218,12 +220,12 @@ addEmployee = () => {
     .then(answer => {
         const params = [answer.firstName, answer.surName]
 
-        const roleSql = `SELECT role.id, role.title FROM role`;
+        const roleSql = `SELECT role.id, role.name FROM role`;
 
-        connection.promise().query(roleSql, (error, data) => {
+        connection.query(roleSql, (error, data) => {
             if (error) throw error;
 
-            const roles = data.map(({ id, title}) => ({ name: title, value: id }));
+            const roles = data.map(({ id, name}) => ({ name: name, value: id }));
 
             prompt([
                 {
@@ -239,7 +241,7 @@ addEmployee = () => {
 
                 const managerSql = `SELECT * FROM employee`;
 
-                connection.promise().query(managerSql, (error, data) => {
+                connection.query(managerSql, (error, data) => {
                     if (error) throw error;
 
                     const managers = data.map(({ id, first_name, last_name }) => ({ name: first_name + " "+ last_name, value: id }));
